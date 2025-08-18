@@ -1,0 +1,97 @@
+GTA SA PC TXD FILE Structure:
+-------------------------------------------------------
+Texture Dictionary  (0x6361C bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x1074 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x105C bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 4252) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 407080) - [3] - Parent = Main
+-------------------------------------------------------
+
+GTA SA PS2 TXD FILE Structure:
+-------------------------------------------------------
+Texture Dictionary  (0x980 bytes @ 12) - [22]- Main
+	Struct  (0x04 bytes @ 24) - [1]  - Parent = Main
+	Texture Native  (0x958 bytes @ 40) - [21]  - Parent = Struct
+		Struct  (0x08 bytes @ 52) - [1] - Parent = Texture Native
+		String  (0x08 bytes @ 72) - [2] - Parent = Texture Native
+		String  (0x04 bytes @ 92) - [2] - Parent = Texture Native
+		Struct  (0x8F8 bytes @ 108) - [1] - Parent = Texture Native
+			Struct  (0x40 bytes @ 120) - [1] - Parent = Struct
+			Struct  (0x8A0 bytes @ 196) - [1]  - Parent = Struct
+		Extension  (0x10 bytes @ 2416) - [3] - Parent = Texture Native
+			Sky Mipmap Val  (0x04 bytes @ 2428) - [272]  - Parent = Extension
+	Extension  (0x00 bytes @ 2444) - [3] - Parent = Main
+-------------------------------------------------------
+
+GTA SA XBOX TXD FILE Structure:
+-------------------------------------------------------
+Texture Dictionary  (0x2D49C bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x874 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x85C bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 2204) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 185512) - [3] - Parent = Main
+-------------------------------------------------------
+
+GTA III PC TXD FILE Structure:
+-------------------------------------------------------
+Texture Dictionary  (0x4009C bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1]  - Parent = Main
+	Texture Native  (0x40074 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x4005C bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 262300) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 262312) - [3] - Parent = Main
+-------------------------------------------------------
+
+GTA III PS2 TXD FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x9C8 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x9A0 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x08 bytes @ 52) - [1] - Parent = Texture Native
+		String  (0x10 bytes @ 72) - [2] - Parent = Texture Native
+		String  (0x04 bytes @ 100) - [2] - Parent = Texture Native
+		Struct  (0x938 bytes @ 116) - [1] - Parent = Texture Native
+			Struct  (0x40 bytes @ 128) - [1] - Parent = Struct
+			Struct  (0x8E0 bytes @ 204) - [1] - Parent = Struct
+		Extension  (0x10 bytes @ 2488) - [3] - Parent = Texture Native
+			Sky Mipmap Val  (0x04 bytes @ 2500) - [272] - Parent = Extension
+	Extension  (0x00 bytes @ 2516) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+GTA III Xbox TXD FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x2B54 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x2B2C bytes @ 40) - [21]  - Parent = Struct
+		Struct  (0x2B14 bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 11092) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 11104) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+GTA VC PC TXD FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x209C bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x2074 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x205C bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 8348) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 8360) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+GTA VC PS2 TXD FILE Structure:
+-------------------------------------------------------
+Can't Find
+-------------------------------------------------------
+
+GTA VC Xbox TXD FILE Structure:
+-------------------------------------------------------
+Can't FInd
+-------------------------------------------------------
