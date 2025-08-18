@@ -1,3 +1,39 @@
+Sonic Heroes TXD GameCube FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x566C bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x5644 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x562C bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 22124) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 22136) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+RenderWare 3.7.0.2 TXD PC SDK D3D8 FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x1F9808 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x1F97E0 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x1F97C8 bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 2070536) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 2070548) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+RenderWare 3.7.0.2 TXD PC SDK D3D9 FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x5554B4 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x55548C bytes @ 40) - [21]] - Parent = Struct
+		Struct  (0x555474 bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 5592244) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 5592256) - [3] - Parent = Main
+
+-------------------------------------------------------
+
 GTA SA PC TXD FILE Structure:
 -------------------------------------------------------
 Texture Dictionary  (0x6361C bytes @ 12) - [22] - Main
@@ -88,10 +124,75 @@ Texture Dictionary  (0x209C bytes @ 12) - [22] - Main
 
 GTA VC PS2 TXD FILE Structure:
 -------------------------------------------------------
-Can't Find
+
+Texture Dictionary  (0x5904 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x58DC bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x08 bytes @ 52) - [1] - Parent = Texture Native
+		String  (0x0C bytes @ 72) - [2] - Parent = Texture Native
+		String  (0x04 bytes @ 96) - [2] - Parent = Texture Native
+		Struct  (0x5888 bytes @ 112) - [1] - Parent = Texture Native
+			Struct  (0x40 bytes @ 124) - [1] - Parent = Struct
+			Struct  (0x5830 bytes @ 200) - [1] - Parent = Struct
+		Extension  (0x00 bytes @ 22788) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 22800) - [3] - Parent = Main
+
 -------------------------------------------------------
 
 GTA VC Xbox TXD FILE Structure:
 -------------------------------------------------------
-Can't FInd
+
+Texture Dictionary  (0x55F0 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x55C8 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x55B0 bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 22000) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 22012) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+Manhunt PC TXD FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0xB6C bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0xB44 bytes @ 40) - [21] - Parent = Struct
+		Struct  (0xB2C bytes @ 52) - [1] - Parent = Texture Native
+		Extension  (0x00 bytes @ 2924) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 2936) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+Manhunt PS2 TXD FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x5904 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x58DC bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x08 bytes @ 52) - [1] - Parent = Texture Native
+		String  (0x0C bytes @ 72) - [2] - Parent = Texture Native
+		String  (0x04 bytes @ 96) - [2] - Parent = Texture Native
+		Struct  (0x5888 bytes @ 112) - [1] - Parent = Texture Native
+			Struct  (0x40 bytes @ 124) - [1] - Parent = Struct
+			Struct  (0x5830 bytes @ 200) - [1] - Parent = Struct
+		Extension  (0x00 bytes @ 22788) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 22800) - [3] - Parent = Main
+
+-------------------------------------------------------
+
+Bully PS2 TXD FILE Structure:
+-------------------------------------------------------
+
+Texture Dictionary  (0x5904 bytes @ 12) - [22] - Main
+	Struct  (0x04 bytes @ 24) - [1] - Parent = Main
+	Texture Native  (0x58DC bytes @ 40) - [21] - Parent = Struct
+		Struct  (0x08 bytes @ 52) - [1] - Parent = Texture Native
+		String  (0x0C bytes @ 72) - [2] - Parent = Texture Native
+		String  (0x04 bytes @ 96) - [2] - Parent = Texture Native
+		Struct  (0x5888 bytes @ 112) - [1] - Parent = Texture Native
+			Struct  (0x40 bytes @ 124) - [1] - Parent = Struct
+			Struct  (0x5830 bytes @ 200) - [1] - Parent = Struct
+		Extension  (0x00 bytes @ 22788) - [3] - Parent = Texture Native
+	Extension  (0x00 bytes @ 22800) - [3] - Parent = Main
+
 -------------------------------------------------------

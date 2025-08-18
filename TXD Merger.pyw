@@ -12,11 +12,26 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
-# --- Config / constants -----------------------------------------------------
-CHUNK_TXD       = 0x16
-CHUNK_STRUCT    = 0x01
-CHUNK_TEXTURE   = 0x15
-CHUNK_EXTENSION = 0x03
+# --- TXD Chunk Constants (expanded, named, tagged) -------------------------
+
+# Core / main TXD chunks (RenderWare standard-ish)
+CHUNK_TEX_DICT      = 0x00   # Texture dictionary placeholder (PC/Xbox)  (user tag: placeholder)
+CHUNK_STRUCT        = 0x01   # Structural chunk (contains image metadata)
+CHUNK_STRING        = 0x02   # String block (PS2 TXDs: GTA SA / GTA III / VC / Manhunt / Bully)
+CHUNK_EXTENSION     = 0x03   # Extension / extra data (often child of Texture Native or TXD)
+CHUNK_PS2_EXTRA1    = 0x04   # PS2-specific extra struct inside Texture Native (PS2-only)
+# (0x05 - 0x0F) reserved / vendor-specific in many RW builds
+CHUNK_PS2_EXTRA2    = 0x08   # PS2-specific string block (GTA III / SA)
+CHUNK_PS2_EXTRA3    = 0x0C   # PS2-specific string block (GTA VC / PS2 games)
+CHUNK_SKY_MIPMAP    = 0x10   # Sky Mipmap Values (PS2 TXDs — stored inside Extension)
+CHUNK_TEXTURE       = 0x15   # Texture Native chunk (main image + mipmaps)  (alias: CHUNK_TEX_NATIVE)
+CHUNK_TXD           = 0x16   # Texture Dictionary (top-level container for a TXD)
+
+# Structural / size constants (user-provided structural sizes used in PS2 files)
+CHUNK_STRUCT_SMALL  = 0x40    # small struct block seen inside PS2 Texture Native
+CHUNK_STRUCT_LARGE  = 0x8A0   # large struct used inside GTA SA (PS2)
+CHUNK_STRUCT_XL     = 0x8E0   # extra-large struct used in GTA III (PS2)
+CHUNK_STRUCT_VC     = 0x5830  # huge struct used in GTA VC / similar PS2 files
 
 # Known version markers (used for detection). We pick representative values.
 GAME_VERSIONS = {
