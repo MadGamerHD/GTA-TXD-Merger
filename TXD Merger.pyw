@@ -6,7 +6,9 @@ TXD Merger — Simple UI
   name-collision handling (in-memory labels), parallel loading for speed.
 """
 
-import struct, hashlib, logging
+import struct
+import hashlib
+import logging
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor, as_completed
 import tkinter as tk
@@ -15,16 +17,16 @@ from tkinter import filedialog, messagebox, ttk
 # --- TXD Chunk Constants (expanded, named, tagged) -------------------------
 
 # Core / main TXD chunks (RenderWare standard-ish)
-CHUNK_TEX_DICT      = 0x00   # Texture dictionary placeholder (PC/Xbox)  (user tag: placeholder)
+CHUNK_TEX_DICT      = 0x00   # Texture dictionary placeholder (PC/Xbox)
 CHUNK_STRUCT        = 0x01   # Structural chunk (contains image metadata)
-CHUNK_STRING        = 0x02   # String block (PS2 TXDs: GTA SA / GTA III / VC / Manhunt / Bully)
+CHUNK_STRING        = 0x02   # String block (PS2 TXDs)
 CHUNK_EXTENSION     = 0x03   # Extension / extra data (often child of Texture Native or TXD)
-CHUNK_PS2_EXTRA1    = 0x04   # PS2-specific extra struct inside Texture Native (PS2-only)
+CHUNK_PS2_EXTRA1    = 0x04   # PS2-specific extra struct inside Texture Native
 # (0x05 - 0x0F) reserved / vendor-specific in many RW builds
 CHUNK_PS2_EXTRA2    = 0x08   # PS2-specific string block (GTA III / SA)
 CHUNK_PS2_EXTRA3    = 0x0C   # PS2-specific string block (GTA VC / PS2 games)
 CHUNK_SKY_MIPMAP    = 0x10   # Sky Mipmap Values (PS2 TXDs — stored inside Extension)
-CHUNK_TEXTURE       = 0x15   # Texture Native chunk (main image + mipmaps)  (alias: CHUNK_TEX_NATIVE)
+CHUNK_TEXTURE       = 0x15   # Texture Native chunk (main image + mipmaps)
 CHUNK_TXD           = 0x16   # Texture Dictionary (top-level container for a TXD)
 
 # Structural / size constants (user-provided structural sizes used in PS2 files)
@@ -33,12 +35,6 @@ CHUNK_STRUCT_LARGE  = 0x8A0   # large struct used inside GTA SA (PS2)
 CHUNK_STRUCT_XL     = 0x8E0   # extra-large struct used in GTA III (PS2)
 CHUNK_STRUCT_VC     = 0x5830  # huge struct used in GTA VC / similar PS2 files
 
-# Known version markers (used for detection). We pick representative values.
-GAME_VERSIONS = {
-    'III': [0x00000310, 0x0003FFFF],
-    'VC':  [0x1003FFFF, 0x0C02FFFF],
-    'SA':  [0x1803FFFF],
-}
 # Representative target version to write when forcing a platform
 TARGET_VERSION_BY_GAME = {
     'III': 0x00000310,
@@ -74,18 +70,31 @@ class TxdFile:
 
     @staticmethod
     def parse_chunks(data: bytes, offset: int = 0, length: int = None, endian: str = '<'):
-        end = len(data) if length is None else offset + length
+        """
+        Generator that yields (chunk_id, version, payload_bytes, chunk_offset_within_data, total_chunk_size).
+        Each chunk header is (uint32 id, uint32 size, uint32 version).
+        """
+        if length is None:
+            end = len(data)
+        else:
+            end = offset + length
         pos = offset
         header_fmt = endian + 'III'
         header_size = 12
+        # sanity limit (avoid pathological sizes)
+        MAX_CHUNK_SIZE = 1 << 30
         while pos + header_size <= end:
             try:
                 cid, size, ver = struct.unpack_from(header_fmt, data, pos)
             except struct.error:
                 break
             total = header_size + size
-            if size < 0 or pos + total > end:
-                logging.warning('Invalid/overflow chunk at pos %d (cid=%#x)', pos, cid)
+            # validation
+            if size > MAX_CHUNK_SIZE or total < header_size:
+                logging.warning('Chunk at %d claims absurd size (%d). Stopping parse.', pos, size)
+                break
+            if pos + total > end:
+                logging.warning('Invalid/overflow chunk at pos %d (cid=%#x, size=%d), stopping.', pos, cid, size)
                 break
             chunk = data[pos:pos + total]
             payload = chunk[header_size:]
@@ -94,21 +103,33 @@ class TxdFile:
 
     @staticmethod
     def detect_game_from_version(v: int) -> str:
-        for game, versions in GAME_VERSIONS.items():
-            if v in versions:
-                return game
-        try:
-            min_all = min(min(vs) for vs in GAME_VERSIONS.values())
-            if v < min_all:
-                return 'III'
-            if v < min(GAME_VERSIONS['SA']):
-                return 'VC'
-        except Exception:
-            pass
+        """
+        Use a simple heuristic: the top byte of the version value often identifies the target:
+          - 0x18xxxxxx -> San Andreas
+          - 0x10xxxxxx -> Vice City
+          - 0x00xxxxxx -> GTA III / older
+        Fall back to exact mapping if present.
+        """
+        top = v & 0xFF000000
+        if top == 0x18000000:
+            return 'SA'
+        if top == 0x10000000:
+            return 'VC'
+        if top == 0x00000000:
+            return 'III'
+        # exact matches
+        for g, val in TARGET_VERSION_BY_GAME.items():
+            if v == val:
+                return g
+        # default fallback
         return 'SA'
 
     @staticmethod
     def find_texture_chunks(data: bytes, endian: str = '<'):
+        """
+        Walk chunk tree (breadth via stack) and yield any CHUNK_TEXTURE entries found.
+        Yields (version, payload, containing_block_bytes, pos_within_block, total_chunk_size)
+        """
         stack = [data]
         while stack:
             blk = stack.pop()
@@ -116,21 +137,46 @@ class TxdFile:
                 if cid == CHUNK_TEXTURE:
                     yield ver, payload, blk, pos, total
                 else:
-                    stack.append(payload)
+                    # push payload to explore nested chunks
+                    if payload:
+                        stack.append(payload)
 
     @staticmethod
     def extract_name(chunk_payload: bytes, endian: str = '<') -> str | None:
+        """
+        Try to extract a readable name from the texture chunk payload:
+        1) look for a nested CHUNK_STRUCT and a likely name area inside it
+        2) fallback: scan first 256 bytes for printable ascii, stop at NUL
+        """
         for cid, ver, payload, _, _ in TxdFile.parse_chunks(chunk_payload, 0, None, endian):
-            if cid == CHUNK_STRUCT and len(payload) >= 40:
-                raw_name = payload[8:40]
-                return raw_name.split(b"\x00", 1)[0].decode('ascii', 'ignore')
+            if cid == CHUNK_STRUCT and len(payload) >= 12:
+                # Many TXD formats store a short name or label near the start of the struct.
+                raw_name = payload[8:8 + 32]  # try a 32-byte window
+                raw_name = raw_name.split(b"\x00", 1)[0]
+                if raw_name:
+                    try:
+                        return raw_name.decode('ascii', 'ignore')
+                    except Exception:
+                        pass
+        # fallback: first printable ASCII bytes in first 256 bytes
         try:
-            raw = chunk_payload[:256]
-            return raw.split(b'\x00', 1)[0].decode('ascii', 'ignore')[:32]
+            probe = chunk_payload[:256]
+            # split on first NUL and then ensure printable subset
+            raw = probe.split(b'\x00', 1)[0]
+            # filter to ASCII-printable characters
+            filtered = bytes([c for c in raw if 32 <= c < 127])
+            if filtered:
+                return filtered.decode('ascii', 'ignore')[:32]
         except Exception:
-            return None
+            pass
+        return None
 
     def _detect_endianness(self, raw: bytes) -> str:
+        """
+        If the first header uint32 equals CHUNK_TXD in little-endian, it's LE.
+        If equals CHUNK_TXD in big-endian, it's BE.
+        Fallback to LE.
+        """
         if len(raw) < 12:
             return '<'
         try:
@@ -156,6 +202,10 @@ class TxdFile:
         if cid != CHUNK_TXD:
             raise ValueError(f"{path.name} is not a valid TXD (cid={cid})")
 
+        # validate that top-level size fits in file
+        if 12 + size > len(self.raw_data):
+            raise ValueError(f"{path.name}: header size ({size}) exceeds file length ({len(self.raw_data)}).")
+
         self.version = version
         self.game = TxdFile.detect_game_from_version(version)
 
@@ -169,9 +219,8 @@ class TxdFile:
             if h in seen_hashes:
                 continue
             seen_hashes.add(h)
-            name = TxdFile.extract_name(tex_payload, endian=self.endian)
-            if name:
-                textures.append(Texture(name, raw_chunk, tex_payload))
+            name = TxdFile.extract_name(tex_payload, endian=self.endian) or ''
+            textures.append(Texture(name, raw_chunk, tex_payload))
 
         self.textures = textures
         logging.info('Loaded %d textures from %s (Game=%s, Ver=%#x, endian=%s)',
@@ -179,6 +228,12 @@ class TxdFile:
         return self
 
     def save(self, path: Path, target_version: int) -> None:
+        """
+        Save a merged TXD. For now we write little-endian PC-style files ('<').
+        If you need other platform endian, change out_endian accordingly.
+        """
+        out_endian = '<'  # change to '>' if you want big-endian output (Xbox/PS2-specific flows may differ)
+
         # Deduplicate by content hash
         hash_map = {}
         for tex in self.textures:
@@ -187,28 +242,32 @@ class TxdFile:
 
         textures = list(hash_map.values())
 
-        # Resolve duplicate names (same name but different content)
+        # Resolve duplicate names (same name but different content) with suffixes
         name_counts = {}
         for tex in textures:
-            base = tex.name or 'texture'
+            base = (tex.name or 'texture').strip() or 'texture'
             if base in name_counts:
                 name_counts[base] += 1
                 tex.name = f"{base}_dup{name_counts[base]}"
             else:
                 name_counts[base] = 0
+                tex.name = base
 
-        # Build struct chunk like before
-        struct_payload = struct.pack('<HH', len(textures), 0)
-        struct_chunk = struct.pack('<III', CHUNK_STRUCT, len(struct_payload), target_version) + struct_payload
+        # Build a simple struct chunk (the "struct" block that lists textures).
+        # Keep existing behaviour: 2-byte count + 2-byte flags (legacy)
+        struct_payload = struct.pack(out_endian + 'HH', len(textures), 0)
+        struct_chunk = struct.pack(out_endian + 'III', CHUNK_STRUCT, len(struct_payload), target_version) + struct_payload
 
         body = bytearray(struct_chunk)
         for tex in textures:
-            body += struct.pack('<III', CHUNK_TEXTURE, len(tex.payload), target_version) + tex.payload
+            # write the raw texture chunk payload as-is (header + payload)
+            # Note: tex.payload here is the payload for CHUNK_TEXTURE; we need to write header+payload
+            body += struct.pack(out_endian + 'III', CHUNK_TEXTURE, len(tex.payload), target_version) + tex.payload
 
         # top-level zero-length extension
-        body += struct.pack('<III', CHUNK_EXTENSION, 0, target_version)
+        body += struct.pack(out_endian + 'III', CHUNK_EXTENSION, 0, target_version)
 
-        header = struct.pack('<III', CHUNK_TXD, len(body), target_version)
+        header = struct.pack(out_endian + 'III', CHUNK_TXD, len(body), target_version)
         path.write_bytes(header + body)
         logging.info('Saved %d textures to %s (Ver=%#x)', len(textures), path.name, target_version)
 
@@ -241,7 +300,7 @@ class SimpleMergerApp:
         ttk.Button(frame, text='Quit', command=master.quit, width=18).grid(row=4, column=1, pady=6)
 
         self.log = tk.Text(frame, height=10, width=58, state='disabled')
-        self.log.grid(row=5, column=0, columnspan=2, pady=(6,0))
+        self.log.grid(row=5, column=0, columnspan=2, pady=(6, 0))
 
         frame.columnconfigure(0, weight=1)
 
@@ -345,6 +404,7 @@ class SimpleMergerApp:
             self._log("All files loaded successfully.")
 
         messagebox.showinfo('Done', f'Merge complete — {len(out_paths)} output(s) created. Check log for details.')
+
 
 # --- Run --------------------------------------------------------------------
 if __name__ == '__main__':
