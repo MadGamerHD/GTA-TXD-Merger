@@ -29,7 +29,7 @@ CHUNK_SKY_MIPMAP    = 0x10   # Sky Mipmap Values (PS2 TXDs — stored inside Ext
 CHUNK_TEXTURE       = 0x15   # Texture Native chunk (main image + mipmaps)
 CHUNK_TXD           = 0x16   # Texture Dictionary (top-level container for a TXD)
 
-# Structural / size constants (user-provided structural sizes used in PS2 files)
+# Structural / size constants (PS2 TXD internal structs)
 CHUNK_STRUCT_SMALL  = 0x40    # small struct block seen inside PS2 Texture Native
 CHUNK_STRUCT_LARGE  = 0x8A0   # large struct used inside GTA SA (PS2)
 CHUNK_STRUCT_XL     = 0x8E0   # extra-large struct used in GTA III (PS2)
@@ -42,8 +42,59 @@ TARGET_VERSION_BY_GAME = {
     'SA':  0x1803FFFF,
 }
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+# Raster pixel formats (common across RenderWare platforms)
+RASTER_DEFAULT      = 0x00
+RASTER_1555         = 0x01
+RASTER_565          = 0x02
+RASTER_4444         = 0x03
+RASTER_LUM          = 0x04
+RASTER_8888         = 0x05
+RASTER_888          = 0x06
+RASTER_16           = 0x07
+RASTER_24           = 0x08
+RASTER_32           = 0x09
+RASTER_555          = 0x0A
 
+# Direct3D pixel formats (PC / Xbox)
+D3D_8888            = 21
+D3D_888             = 22
+D3D_565             = 23
+D3D_555             = 24
+D3D_1555            = 25
+D3D_4444            = 26
+
+D3DFMT_L8           = 50
+D3DFMT_A8L8         = 51
+
+D3D_DXT1            = 827611204
+D3D_DXT2            = 844388420
+D3D_DXT3            = 861165636
+D3D_DXT4            = 877942852
+D3D_DXT5            = 894720068
+
+# D3D Compression type identifiers
+D3D_COMPRESS_DXT1   = 1
+D3D_COMPRESS_DXT2   = 2
+D3D_COMPRESS_DXT3   = 3
+D3D_COMPRESS_DXT4   = 4
+D3D_COMPRESS_DXT5   = 5
+
+# Palette types
+PALETTE_NONE        = 0
+PALETTE_8           = 1
+PALETTE_4           = 2
+PALETTE_4_LSB       = 3
+
+# Device / platform types
+DEVICE_NONE         = 0
+DEVICE_D3D8         = 1
+DEVICE_D3D9         = 2
+DEVICE_GC           = 3   # GameCube (probable mapping)
+DEVICE_PS2          = 6
+DEVICE_XBOX         = 8
+DEVICE_PSP          = 9
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 
 # --- Utility reading helpers ------------------------------------------------
 def read_u32(data: bytes, offset: int, endian: str = '<') -> int:
@@ -411,3 +462,4 @@ if __name__ == '__main__':
     root = tk.Tk()
     SimpleMergerApp(root)
     root.mainloop()
+
