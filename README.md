@@ -1,122 +1,219 @@
-# TXD Merger — Detailed Description & How It Works
+# Universal TXD Merger — README
 
-A compact, fast TXD-merger tool (single-file Python + Tkinter) for RenderWare `.txd` texture dictionaries used by the classic GTA games.
-It’s meant to be a lightweight, reliable helper that **scans a folder of TXD files, deduplicates textures, and writes one or more merged TXD files**, keeping per-file versions where possible.
+## Overview
 
----
+**Universal TXD Merger** is a cross-platform Python tool to parse, merge, deduplicate, and export textures from RenderWare `*.txd` files. It supports many RenderWare variants used by games such as **Grand Theft Auto (III/VC/SA)**, **Sonic the Hedgehog (GameCube)**, **Manhunt**, **Bully**, and other PS2/PC/Xbox/GC RenderWare-based titles.
 
-## Supported games / platforms (what it understands)
-
-* **GTA III, Vice City, San Andreas** (representative RenderWare versions present in those games).
-* Platform heuristics included: **PC (little-endian)**, **Xbox (big-endian)**, and **PS2** (structure differences).
-* The merger detects the on-disk TXD *version* and groups/merges files by that detected version. You can also **force** a target version (III, VC, or SA) to convert everything to that version tag when saving.
-
-> Note: The tool reads and preserves each texture chunk as-is (raw chunk payloads). It does **not** attempt complex per-platform conversions (unswizzling PS2 data, or converting palette/compression formats). For cross-version/platform conversion (e.g. PC ↔ PS2/Xbox) use a dedicated tool such as **Magic.TXD** after merging the result.
+This tool focuses on merging *many* `.txd` files into one or more merged TXDs while preserving texture payloads and metadata, resolving name collisions, and deduplicating identical textures. It also optionally decodes common texture formats and exports textures as PNG (or PPM when Pillow is unavailable) for verification/preview.
 
 ---
 
 ## Key features
 
-* **Automatic endianness detection** (PC little-endian vs Xbox big-endian) so the parser knows how to interpret headers.
-* **Game/version detection**: reads the RenderWare/version field and groups TXDs by detected `(game, version)` pair.
-* **Two merge modes**:
+* Robust recursive TXD chunk parser supporting nested RenderWare chunk trees.
+* Automatic RW version and platform heuristic detection (PC / PS2 / Xbox / GameCube variants).
+* Content-based deduplication (MD5 of raw texture chunk bytes).
+* Multiple merge policies to control how duplicates and collisions are handled:
 
-  * **Detect** (default): groups TXDs by their detected game+version and writes one merged TXD per group.
-  * **Force (III / VC / SA)**: forces all input TXDs into a single merged output tagged with the chosen version.
-* **Parallel parsing** using `ThreadPoolExecutor` for fast scanning of many files (scales well to large folders).
-* **Content deduplication**: identical texture chunks are deduplicated using an MD5 hash of the raw chunk (so exact binary duplicates are removed).
-* **Name collision handling**: if two different textures share the same name but have different content, duplicates are renamed in-memory to `name_dupN` so they don’t silently overwrite each other in the merged manifest. (Binary payloads are preserved; see Limitations below about embedding names.)
-* **Minimal, beginner-friendly UI**: three-step workflow (Select Folder → Save As → Version mode → Merge). Progress bar + log window.
-* **Structure dump**: examine chunk tree for the first TXD in the folder (useful for debugging and verification).
-* **Safe file writes** with clear logging and success/failure messages.
-
----
-
-## How the merge works (technical summary)
-
-1. **Scan**: the tool finds `*.txd` files in the chosen input folder.
-2. **Load & detect**: for each file it:
-
-   * Detects endianness by reading header chunk ids.
-   * Reads the top-level TXD header (chunk id / size / version).
-   * Detects game/version from the version field.
-   * Walks nested chunks to find texture (raster) chunks.
-   * Extracts texture names where present (PC-style 32-byte name in `Struct` payload or fallback probe).
-   * Hashes the raw texture chunk bytes (MD5) for dedupe.
-3. **Group**: group loaded TXDs by `(game, version)` when in Detect mode, or put all into one group when forcing a version.
-4. **Merge**:
-
-   * Flatten textures from group(s).
-   * Deduplicate by binary content (hash).
-   * Resolve name collisions by renaming in-memory labels (`_dupN`).
-   * Build a new TXD body consisting of one `Struct` chunk listing the texture count and a sequence of `Texture` chunks using the original raw payloads.
-   * Append a top-level zero-length `Extension` chunk and header, then write the file.
-5. **Output**: written files are named according to the base filename chosen by the user and annotated with the detected game/version (or `_merged_ver...` if forced).
+  * `keep_first` — keep the first occurrence (default)
+  * `keep_last` — later files override earlier ones
+  * `skip_duplicates` — skip exact binary duplicates
+  * `auto_rename` — auto-rename colliding textures and update internal payload names where possible
+* Preserves `txd_texture_data` and `txd_extra_info` payloads and mipmap chains verbatim.
+* Exports decoded textures to PNG (if Pillow is installed) or PPM as fallback.
+* Built-in pure-Python decoders for common compressed formats: **DXT1**, **DXT3**, **DXT5**.
+* Threaded, parallel loading of input `.txd` files for speed.
+* Minimal Tkinter GUI: folder selection, output path, version override, endianness choice, merge policy selection, progress and logging panel.
 
 ---
 
-## Typical usage (UX)
+## Requirements
 
-1. Put all `.txd` files in a single folder.
-2. Run the script. Click **Select Folder** and choose the folder.
-3. Click **Save As** and pick a base filename + destination.
-4. Choose **Detect** (recommended) or explicitly choose `III`, `VC`, or `SA`.
-5. Click **Merge** — watch the progress and log. Resulting merged files are written next to your chosen output path (one per detected group, or one forced file).
+* Python **3.10+** (3.8+ may work but 3.10+ recommended)
+* Optional: **Pillow** for PNG export
 
----
+Install Pillow (optional) with:
 
-## Outputs & file naming
+```bash
+pip install pillow
+```
 
-* If **Detect** mode: outputs like `base_SA_ver0x1803ffff.txd`, `base_VC_ver0x1003ffff.txd`, etc. — one per detected `(game,version)`.
-* If **Force** mode: `base_merged_ver0x1803ffff.txd` (single output with the chosen target version).
+No other external libraries are required. The DXT decoders are included in pure Python.
 
 ---
 
-## Limitations & important notes (read this)
+## Files
 
-* **No format conversion**: the merger preserves raw texture chunks exactly as they were in input TXDs. It does *not*:
-
-  * Unscramble/swizzle PS2 texture texel layout.
-  * Convert palette formats or change compression (DXT) formats.
-  * Rebuild or rewrite the internal texture struct payloads to match a different platform (other than changing the version tag in written chunk headers).
-* **Names inside binary payloads**: the tool updates only the in-memory `name` labels for collision resolution; **it does not rewrite names inside binary texture headers**. Properly changing a texture name inside a texture header requires rebuilding that texture’s `Struct` chunk and is non-trivial—this is a planned enhancement.
-* **No image preview / extraction**: the tool does not extract textures to PNG/DDS — it’s focused on merging TXDs quickly and reliably.
-* **Subfolders**: current simple UI scans only the selected folder (no recursive subfolder traverse).
-* **PS2/Xbox specifics**: while structural differences are handled (endianness and extra strings/extensions), full PS2/Xbox-to-PC conversion (unswizzling, color order changes) is outside the scope. For conversions, use Magic.TXD or another dedicated converter after merging.
-* **Validation**: merged TXDs are assembled using your original payloads; they will be valid TXDs in many cases, but **you should verify results** with tools like Magic.TXD, RW Analyze, or your workflow (import into the game editor or convert and test).
-* **Beta status**: the tool is a beta-grade merger with robust parsing and fast performance but not yet feature-complete for full format conversions.
+* `txd_merger_universal_with_export.py` — main script (single-file). Run this to launch the GUI.
+* `README.md` — this file.
 
 ---
 
-## Recommended workflow for cross-version needs
+## Quick start (GUI)
 
-1. Use this merger to produce a single clean SA/VC/III TXD (as appropriate).
-2. If you need a different target platform/format, run the merged TXD through **Magic.TXD** (or similar) to convert platform-specific details (unswizzle PS2, convert compression flags, fix names in headers, etc.).
-3. Test the final TXD in your target editor/game.
+1. Place your `.txd` files in a single folder (or multiple runs with different folders).
+2. Run the script:
+
+```bash
+python txd_merger_universal_with_export.py
+```
+
+3. In the GUI:
+
+   * Click **Select Folder** and pick the folder containing `.txd` files.
+   * Click **Save As** and choose the output `.txd` base filename (the tool will append `_SA_ver0x...` or similar when using detection).
+   * Choose **Version mode**: `Detect` (auto) or force a specific target version (III/VC/SA/etc.).
+   * Choose **Output endianness**: `LE` (default PC-style) or `BE`.
+   * Choose **Merge policy** (see options above).
+   * Click **Merge**. Progress and logs will appear in the panel below.
+
+4. After successful merge, use **Export Textures (Merged)** to export decoded textures from the last merged TXD.
+
+   * Pick an output directory. PNG files are produced if Pillow is installed; otherwise PPMs are created.
 
 ---
 
-## Future/optional improvements (planned)
+## Command-line usage (manual runs)
 
-* Option to **export textures to DDS/PNG** for verification.
-* Rewriting texture `Struct` payloads so renaming writes into the merged binary (proper header rebuild).
-* Recursive folder scanning and CLI (headless) mode for automation.
-* Faster large-batch tuning (threadpool size config) and a manifest file mapping source→merged textures.
-* Optional integration with Magic.TXD-like conversion steps or a small helper script to call Magic.TXD automatically (if installed).
+The script is primarily GUI-driven, but you can run it from a terminal to start the app. Future CLI options may be added. Example:
 
----
-
-## Performance & footprint
-
-* Lightweight single-file script (small footprint). Parsing is parallelized and optimized for large folders — merging thousands of TXDs is feasible (your reported tests show sub-second/seconds behavior on many machines, but speed depends on disk I/O and CPU).
+```bash
+python txd_merger_universal_with_export.py
+```
 
 ---
 
-## Troubleshooting & verification
+## Merge policy details
 
-* If a merged TXD fails in your target:
+* **keep\_first** (default): Keeps the first encountered texture in the input ordering. Binary-identical duplicates are deduplicated by MD5. If different textures share the same name, the tool will attempt to give the later one a safe suffix to avoid runtime collisions but keep the first's content.
 
-  * Open the merged file in **Magic.TXD** or **RW Analyze** to inspect chunk tree and headers.
-  * If PS2 textures look scrambled, their data is likely swizzled — you’ll need platform conversion.
-  * Verify texture names and counts using the structure dump option in the tool (writes a structure text file for inspection).
-* Start testing with a small subset of TXDs (2–10 files) before running very large batches.
+* **keep\_last**: If multiple textures share a name or represent different content, the last encountered (by file load order) wins — previous ones are overridden.
+
+* **skip\_duplicates**: Exact binary duplicates (same MD5) are omitted from the merged TXD.
+
+* **auto\_rename**: Different content with the same textual name will be renamed (e.g. `texture_01`, `texture_02`) and the tool attempts to update the internal `texture_name` field inside the `txd_texture_data` payload where a `CHUNK_STRUCT` is present.
+
+Choose the policy that matches your workflow. If you want to retain all textures regardless of names, use `auto_rename` to ensure no collisions.
+
+---
+
+## Exported texture decoding
+
+The tool attempts to parse the internal `txd_texture_data` struct to discover:
+
+* `d3d_format` (FourCC or small numeric codes)
+* `width`, `height`, `depth`, `mipmap_count`
+* raw `data` (base mipmap) and subsequent mipmaps
+
+Currently supported decode targets:
+
+* `DXT1`, `DXT3`, `DXT5` (FourCC / common PC compressed formats)
+* Uncompressed `RGBA32` and `RGB24`
+
+**Limitations:**
+
+* PS2 palette-based (8-bit indexed) textures and console-specific swizzled layouts are not automatically converted. The tool preserves their bytes verbatim in merged TXDs — you can extend it to decode palettes if needed.
+* Some edge-case mipmap layouts or nonstandard vendor encodings may not decode perfectly with the built-in decoders.
+
+If a decode fails, the tool logs the error and skips exporting that texture.
+
+---
+
+## Output format and endianness
+
+* By default the merger writes a **little-endian (LE)** TXD suitable for PC-style RenderWare (D3D9/PC). You may choose `BE` in the UI to write a big-endian top-level file (useful for some console-targeted workflows), but note:
+
+  * The tool preserves nested payload bytes verbatim unless it explicitly updates an inner `texture_name` field during `auto_rename`.
+  * Generating fully platform-correct console TXDs (with PS2-specific structs, sky-mipmap blocks, or swizzled surfaces) requires additional platform-specific serializers and is out of scope for the initial release.
+
+---
+
+## Known limitations & caveats
+
+* **Exact dedupe only:** Deduplication uses MD5 of the raw texture chunk bytes. Visually identical textures with different encodings will not be deduped.
+* **PS2/Xbox/GC platform conversions:** The tool does not automatically convert or swizzle textures between platforms. Merging PS2 TXDs into PC TXDs will preserve raw payloads but not convert palette or swizzle formats.
+* **Name update heuristics:** Updating the internal `texture_name` is attempted only if a `CHUNK_STRUCT` with an expected structure is found. This is a best-effort operation; it will not always succeed for every format.
+* **DXT decoder:** The included DXT decoders are pure Python and work for common blocks; rare or corrupted textures can fail decoding.
+
+If you need any of the advanced conversions (PS2 palette -> RGBA, xbox swizzle/un-swizzle, full platform serializers), I can add them as follow-ups.
+
+---
+
+## Troubleshooting
+
+* **No textures exported / decode fails:** Check the log panel. If the format is a PS2 indexed palette or unusual FourCC, decoding may fail. Provide a sample TXD and I can inspect/extend the decoder.
+* **Large TXD files crash / memory pressure:** The tool loads texture payloads into memory. For thousands of large textures, consider batching or extending the tool to stream and process incrementally.
+* **Name update didn't take effect:** Some TXDs store names in uncommon locations. The tool attempts the common `CHUNK_STRUCT` offset; if your files differ, paste a small hex dump and I can add support.
+
+---
+
+## Development notes (for contributors)
+
+* The parser is implemented around `TxdFile.parse_chunks()` which yields `(cid, ver, payload, pos, total)` for nested scanning.
+* `TxdFile.find_texture_chunks()` performs stack-based traversal to locate `CHUNK_TEXTURE` entries.
+* Textures are represented by small objects holding `raw_chunk`, `payload`, `name`, and `hash`.
+* The save routine assembles a basic TXD with a `CHUNK_STRUCT` (count), the `CHUNK_TEXTURE` items, then a zero-length `CHUNK_EXTENSION`.
+* Add new platform-specific serializers by implementing an export path that reconstructs platform-specific `txd_texture_data` layout and performs required alignment/padding.
+
+---
+
+## Example workflow
+
+1. Put a batch of `.txd` files into `input_txds/`.
+2. Run the app, select `input_txds/`, choose `output.txd` as base name, `Detect` version, `LE` endianness, and set policy to `auto_rename`.
+3. Click **Merge** — results will be saved next to your chosen base name with suffixes indicating detected platform/version.
+4. Click **Export Textures (Merged)** and pick `output_textures/` to get PNG previews.
+
+---
+
+## License
+
+This tool is provided under the MIT License (feel free to copy, modify, and redistribute). No warranty; use at your own risk.
+
+---
+
+## Contact / Next steps
+
+If you want any of these next upgrades:
+
+* **PS2 palette decoding** (indexed -> RGBA)
+* **Xbox/GameCube swizzle/unswizzle**
+* **Platform-aware TXD writer** (PS2/Xbox/GC tailored output)
+* **CLI / batch automation**
+* **Unit tests and sample TXDs**
+
+Tell me which you'd like and I’ll add them. Enjoy merging!
+
+---
+
+# Update Log
+
+**v0.1 — 2025-08-19**
+
+* Initial prototype: basic TXD parser + simple merge UI (folder select, save as, version detect/override).
+* Implements recursive chunk parsing and texture extraction.
+
+**v0.2 — 2025-08-19**
+
+* Improved deduplication by MD5 on raw texture chunks.
+* Added endianness detection and grouping by detected game/version.
+* Name-collision handling (automatic suffixing when necessary).
+
+**v0.3 — 2025-08-19**
+
+* Added parallel loading of TXD files (ThreadPoolExecutor) for large folders.
+* Preserved nested texture payloads and extra info blocks when saving.
+
+**v0.4 — 2025-08-19**
+
+* Implemented merge policy options: `keep_first`, `keep_last`, `skip_duplicates`, `auto_rename`.
+* Added PNG/PPM export of decoded textures (Pillow optional).
+* Bundled pure-Python DXT1/DXT3/DXT5 decoders for preview export.
+
+**v0.5 — 2025-08-19**
+
+* Added robust UI controls: output endianness, version forcing, merge policy dropdown, export button.
+* README and documentation added.
+* Minor bug fixes and improved logging.
+
+*Notes:* dates reflect the current development snapshot. Future updates will include platform-aware serializers (PS2/Xbox/GC), palette decoding for PS2 textures, swizzle/unswizzle support, and CLI/batch automation.
